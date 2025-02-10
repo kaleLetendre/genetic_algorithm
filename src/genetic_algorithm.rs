@@ -32,6 +32,45 @@ impl Individual {
         return self.genes.clone();
     }
 
+    pub fn get_genes_as_chars(&self) -> Vec<char> {
+        let mut char_vec:Vec<char> = vec![];
+        for i in 0..self.gene_length{
+            if self.genes[i]{
+                char_vec.push('1');
+            } else{
+                char_vec.push('0');
+            }
+        }
+        return char_vec;
+    }
+
+    pub fn get_genes_as_bytes(&self) -> Vec<[u8;8]> {
+        if self.gene_length%8 != 0 {
+            panic!("gene length must be a multiple of 8 to convert to bytes");
+        }
+        let mut bytes :Vec<[u8;8]> = vec![];
+        let chunks = self.gene_length/8;
+
+        for i in 0..chunks{
+            let mut byte:[u8;8] = [0,0,0,0,0,0,0,0];
+            for j in 0..8{
+                if self.genes[self.gene_length*i+j]{
+                    byte[i] = 1;
+                } else{
+                    byte[i] = 0;
+                }
+            }
+            bytes.push(byte);
+        }
+        return bytes;
+        
+    }
+
+    pub fn get_genes_as_string(&self){    
+
+
+    }
+
     pub fn set_fitness(&mut self, fitness:u64) {
         self.fitness = fitness;
     }

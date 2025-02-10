@@ -15,13 +15,13 @@ fn main() {
     end_timer(now);
 
     now = start_timer("timing started\n");
-    population = alternating_pattern_test(population.clone());
+    population = string_match(population.clone());
     population.print(10);
 
     for _i in 0..10{
         
         population.next_generation();
-        population = alternating_pattern_test(population.clone());
+        population = string_match(population.clone());
         population.print(10);
     }
     end_timer(now);
@@ -61,6 +61,14 @@ fn alternating_pattern_test(mut population: Population) -> Population {
         }
         population.individuals[i].set_fitness(fitness);
     }
+    return population;
+}
+
+fn string_match(mut population: Population) -> Population {
+    let string = "Kale Is Cool";
+    let mut binary:Vec<char> = vec![];
+
+
     return population;
 }
 
