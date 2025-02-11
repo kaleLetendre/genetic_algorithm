@@ -1,74 +1,60 @@
-use std::time::Instant;
-
 use genetic_algorithm::Population;
 /*
-The goal of this program is to
-    - spawn a population of individuals
-    - score individuals on a task based on their genetics
-    - repopulate new generation of idividuals based on best candidates from last generation
-    - mutate some individuals to avoid convergence
+The script shows the usage of the genetic algorithm
 */
 mod genetic_algorithm;
-fn main() {
-    let mut now = start_timer("init_population");
-    let mut population = genetic_algorithm::init_population(10,100,2,10,true);
-    end_timer(now);
 
-    now = start_timer("timing started\n");
-    population = string_match(population.clone());
-    population.print(10);
+fn main(){
+    string_match_example("hello_world");
+}
+fn string_match_example(string:&str){
+    // goal fitness used to break upon reaching goal, 0 to run forever
+    let goal_fitness = 12*255; //the fitness calculation is the sum of the 255 minus the difference between the real and guessed char. that 12*255 represent perfect fitness
+    let gene_length = string.len() * 8; //I chose this value because each ascii char is 8 bits (1 byte)
+    
+    //create the population
+    let mut population = genetic_algorithm::init_population(gene_length,10,4,15,true,genetic_algorithm::CrossoverType::Byte);
 
-    for _i in 0..10{
+    let mut count = 0;
+    loop{
+        count+=1;
+        // Fitness funtion
+        population = string_match_fitness(population.clone(),string);
+
+        //outputs state
+        let fittest = population.read_fittest();
         
+        if count%1000 == 0{
+            println!("| {:?} |\n| {:?} | |fitness: {}| generation: {}|",string.as_bytes(),fittest.get_genes_as_decimal_bytes(),fittest.get_fitness(),count);
+        }
+        //break when we reach the goal fitness, otherwise you can break with Ctrl+c
+        if fittest.get_fitness() >= goal_fitness && goal_fitness != 0{
+            println!("you may not like it but this is what peak performance looks like > {:?}",fittest.get_genes_as_decimal_bytes());
+            break;
+        }
+
+        // crossover the best
         population.next_generation();
-        population = string_match(population.clone());
-        population.print(10);
+        
+
+        
     }
-    end_timer(now);
 
 
 }
 
-fn start_timer(print: &str) -> Instant{
-    println!("{}",print);
-    Instant::now()
-}
 
-fn end_timer(now:Instant){
-    println!("Elapsed: {:.2?}", now.elapsed());
-}
-
-fn ones_test(mut population:Population) -> Population{
-    for i in 0..population.get_population_size(){
+fn string_match_fitness(mut population: Population, string:&str) -> Population {
+    let bytes = string.as_bytes();
+    for i in 0..population.individuals.len(){
+        let gene_bytes: Vec<u8> = population.individuals[i].get_genes_as_decimal_bytes();
         let mut fitness = 0;
-        let genes = population.individuals[i].get_genes();
-        for gene in genes{
-            if gene{fitness = fitness + 1;}
+        for j in 0..string.len(){
+            let diff = (gene_bytes[j] as i64-bytes[j] as i64).abs();
+            fitness += 255 - diff;  
         }
-        population.individuals[i].set_fitness(fitness);
+        population.individuals[i].set_fitness(fitness as u64)
     }
-    return population;
-}
-
-fn alternating_pattern_test(mut population: Population) -> Population {
-    for i in 0..population.individuals.len() {
-        let mut fitness = 0;
-        let genes = population.individuals[i].get_genes();
-        for i in 1..genes.len() {
-            if genes[i] != genes[i - 1] {
-                fitness += 1;
-            }
-        }
-        population.individuals[i].set_fitness(fitness);
-    }
-    return population;
-}
-
-fn string_match(mut population: Population) -> Population {
-    let string = "Kale Is Cool";
-    let mut binary:Vec<char> = vec![];
-
-
     return population;
 }
 

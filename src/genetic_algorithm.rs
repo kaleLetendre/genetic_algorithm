@@ -32,18 +32,6 @@ impl Individual {
         return self.genes.clone();
     }
 
-    pub fn get_genes_as_chars(&self) -> Vec<char> {
-        let mut char_vec:Vec<char> = vec![];
-        for i in 0..self.gene_length{
-            if self.genes[i]{
-                char_vec.push('1');
-            } else{
-                char_vec.push('0');
-            }
-        }
-        return char_vec;
-    }
-
     pub fn get_genes_as_bytes(&self) -> Vec<[u8;8]> {
         if self.gene_length%8 != 0 {
             panic!("gene length must be a multiple of 8 to convert to bytes");
@@ -54,7 +42,7 @@ impl Individual {
         for i in 0..chunks{
             let mut byte:[u8;8] = [0,0,0,0,0,0,0,0];
             for j in 0..8{
-                if self.genes[self.gene_length*i+j]{
+                if self.genes[8*i+j]{
                     byte[i] = 1;
                 } else{
                     byte[i] = 0;
@@ -63,18 +51,39 @@ impl Individual {
             bytes.push(byte);
         }
         return bytes;
-        
     }
 
-    pub fn get_genes_as_string(&self){    
-
-
+    pub fn get_genes_as_decimal_bytes(&self) -> Vec<u8>{
+        if self.gene_length%8 != 0 {
+            panic!("gene length must be a multiple of 8 to convert to bytes");
+        }
+        let mut bytes :Vec<u8> = vec![];
+        let chunks = self.gene_length/8;
+        // 0000 0000 c0
+        // 0000 0000 c1
+        // 0000 0000 c2
+        for i in 0..chunks{
+            let mut byte:u8 = 0;
+            for j in 0..8{
+                //              chunk location      digit location(reverse order)
+                if self.genes[(8*i) + (7 - j)]{
+                    let base: u32 = 2;
+                    let power: u32 = j as u32;
+                    byte += base.pow(power) as u8;
+                }
+            }
+            bytes.push(byte);
+        }
+        return bytes;
     }
 
     pub fn set_fitness(&mut self, fitness:u64) {
         self.fitness = fitness;
     }
-
+    
+    pub fn get_fitness(&self) -> u64{
+        self.fitness
+    }
     /// Mutates the gene at the specified index with a certain probability.
     /// The mutation chance is determined by the `mutation_chance` parameter.
     ///
@@ -139,7 +148,13 @@ pub struct Population {
     population_size: usize,
     parent_count: usize,
     mutation_chance: u8,
-    multi_threaded:bool
+    multi_threaded:bool,
+    crossover: CrossoverType
+}
+#[derive(Debug,Clone,PartialEq,Eq,Copy)]
+pub enum CrossoverType{
+    Bit,
+    Byte
 }
 
 impl Population {
@@ -164,9 +179,18 @@ impl Population {
             genes: vec![false; parents[0].gene_length],
             fitness: 0,
         };
-
+        let mut rand = rand::rng().random_range(0..parents.len());
         for i in 0..individual.gene_length {
-            let rand = rand::rng().random_range(0..parents.len());
+            match self.crossover{
+                CrossoverType::Byte => {
+                    if i%8 == 0{
+                        rand = rand::rng().random_range(0..parents.len());
+                    }
+                },
+                CrossoverType::Bit => {
+                    rand = rand::rng().random_range(0..parents.len());
+                }
+            }
             individual.genes[i] = parents[rand].genes[i];
             individual.mutate_at_index(i, self.mutation_chance);
         }
@@ -190,8 +214,9 @@ impl Population {
             self.individuals.append(&mut next_gen_individuals);
         }
 
+        // //Multi threaded approach
         else{
-            // //Multi threaded approach
+            
             let mut join_handles: Vec<JoinHandle<()>> = vec![];
             let thread_count = if num_cpus::get() >= self.population_size{ self.population_size} else{num_cpus::get()};
             let next_gen_individuals = Arc::new(Mutex::new(vec![]));
@@ -199,6 +224,7 @@ impl Population {
             let chunk_size = self.population_size / thread_count;
             let mutation_chance = self.mutation_chance;
             let parents = Arc::new(self.individuals.clone());
+            let crossover = self.crossover.clone();
             for i in 0..thread_count{
                 let next_gen_individuals = Arc::clone(&next_gen_individuals);
                 let mut end = if ammount_left < chunk_size{
@@ -218,9 +244,20 @@ impl Population {
                                 genes: vec![false; parents[0].gene_length],
                                 fitness: 0,
                             };
-                    
+
+                            let mut rand = rand::rng().random_range(0..parents.len());
                             for i in 0..individual.gene_length {
-                                let rand = rand::rng().random_range(0..parents.len());
+                                match crossover{
+                                    CrossoverType::Byte => {
+                                        if i%8 == 0{
+                                            rand = rand::rng().random_range(0..parents.len());
+                                        }
+                                    },
+                                    CrossoverType::Bit => {
+                                        rand = rand::rng().random_range(0..parents.len());
+                                    }
+                                }
+
                                 individual.genes[i] = parents[rand].genes[i];
                                 individual.mutate_at_index(i, mutation_chance);
                             }
@@ -263,6 +300,13 @@ impl Population {
     pub fn get_population_size(&self) -> usize{
         self.population_size
     }
+
+    pub fn read_fittest(&mut self) -> Individual{
+        self.individuals.sort_by(|a,b| b.cmp(a));
+        return self.individuals[0].clone();
+    }
+
+
 }
 
 /// Implements the `Display` trait for the `Population` struct.
@@ -293,7 +337,8 @@ pub fn init_population(
     population_size: usize,
     parent_count: usize,
     mut mutation_chance: u8,
-    multi_threaded: bool
+    multi_threaded: bool,
+    crossover: CrossoverType
 ) -> Population {
     if mutation_chance > MAX_MUTATION_CHANCE {
         mutation_chance = MAX_MUTATION_CHANCE;
@@ -319,7 +364,8 @@ pub fn init_population(
         population_size,
         parent_count,
         mutation_chance,
-        multi_threaded
+        multi_threaded,
+        crossover
     };
     temp.randomize_population();
     return temp;
