@@ -43,9 +43,9 @@ impl Individual {
             let mut byte:[u8;8] = [0,0,0,0,0,0,0,0];
             for j in 0..8{
                 if self.genes[8*i+j]{
-                    byte[i] = 1;
+                    byte[j] = 1;
                 } else{
-                    byte[i] = 0;
+                    byte[j] = 0;
                 }
             }
             bytes.push(byte);
@@ -343,7 +343,7 @@ pub fn init_population(
     if mutation_chance > MAX_MUTATION_CHANCE {
         mutation_chance = MAX_MUTATION_CHANCE;
     }
-    if gene_length <=0{
+    if gene_length == 0{
         panic!("the gene length cannot be less than 1");
     }
     if parent_count < 1{
